@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Admin</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarContainer"></div>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <span class="topbar-title">Dashboard</span>
+      </div>
+      <div class="topbar-right">
+        <a href="/" target="_blank" class="btn btn-ghost btn-sm">🌐 Store</a>
+      </div>
+    </div>
+    <div class="admin-content">
+      <div class="stats-grid" id="statsGrid">
+        <div class="stat-card"><div class="stat-icon">🛍️</div><div><div class="stat-label">Total Products</div><div class="stat-value" id="s-products">—</div></div></div>
+        <div class="stat-card"><div class="stat-icon">📂</div><div><div class="stat-label">Categories</div><div class="stat-value" id="s-cats">—</div></div></div>
+        <div class="stat-card"><div class="stat-icon">🚫</div><div><div class="stat-label">Sold Out</div><div class="stat-value" id="s-sold">—</div></div></div>
+        <div class="stat-card"><div class="stat-icon">👁️</div><div><div class="stat-label">Total Views</div><div class="stat-value" id="s-views">—</div></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Products</span>
+          <a href="/headshot/products.html" class="btn btn-ghost btn-sm">View All</a>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Product</th><th>Code</th><th>Category</th><th>Price</th><th>Views</th><th>Status</th></tr></thead>
+            <tbody id="recentTbody"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/js/sidebar.js"></script>
+<script src="/js/admin-utils.js"></script>
+<script>
+  document.getElementById('sidebarContainer').innerHTML = SIDEBAR_HTML;
+  async function loadDashboard() {
+    try {
+      const data = await AdminAPI.get('/dashboard');
+      document.getElementById('s-products').textContent = data.stats.totalProducts;
+      document.getElementById('s-cats').textContent = data.stats.totalCategories;
+      document.getElementById('s-sold').textContent = data.stats.soldOut;
+      document.getElementById('s-views').textContent = data.stats.totalViews.toLocaleString();
+      const tbody = document.getElementById('recentTbody');
+      if (!data.recentProducts.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-row">No products yet.</td></tr>'; return; }
+      tbody.innerHTML = data.recentProducts.map(p => `
+        <tr>
+          <td data-label="Product"><a href="/headshot/edit-product.html?id=${p.id}" style="font-weight:500;color:var(--terra)">${escapeHtml(p.name)}</a></td>
+          <td data-label="Code" class="hide-mobile"><span class="td-code">${escapeHtml(p.code)}</span></td>
+          <td data-label="Category" class="hide-mobile">${escapeHtml(p.category_name) || '—'}</td>
+          <td data-label="Price">${fmtPrice(p.price)}</td>
+          <td data-label="Views" class="hide-mobile">${p.views.toLocaleString()}</td>
+          <td data-label="Status"><span class="badge ${p.status === 'available' ? 'badge-success' : 'badge-danger'}">${p.status === 'available' ? 'Available' : 'Sold Out'}</span></td>
+        </tr>
+      `).join('');
+    } catch(e) { toast('Failed to load dashboard.', 'error'); }
+  }
+  document.addEventListener('DOMContentLoaded', loadDashboard);
+</script>
+</body>
+</html>

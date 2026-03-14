@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Category — EEMRAS</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">EEM<span>RAS</span></a>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/products">Products</a></li>
+        <li><a href="/wishlist">Wishlist</a></li>
+      </ul>
+      <div class="nav-search"><input type="text" id="mainSearch" placeholder="Search…"><span
+          class="search-icon">⌕</span></div>
+      <div class="nav-actions"><a href="/wishlist" class="nav-icon-btn">♡<span class="badge wishlist-badge"
+            style="display:none">0</span></a></div>
+      <div class="hamburger"><span></span><span></span><span></span></div>
+    </div>
+  </nav>
+  <div class="breadcrumb" id="breadcrumb"></div>
+  <div class="section" style="padding-top:2rem">
+    <div class="section-header" id="catHeader">
+      <div class="section-title">
+        <h2 id="catName">Loading…</h2>
+        <p id="catCount"></p>
+      </div>
+    </div>
+    <div class="filters-bar">
+      <select class="filter-select" id="measureFilter">
+        <option value="">All Sizes</option>
+        <option>XS</option>
+        <option>S</option>
+        <option>M</option>
+        <option>L</option>
+        <option>XL</option>
+        <option>XXL</option>
+        <option>Free Size</option>
+      </select>
+      <button class="filter-pill active" data-val="">All</button>
+      <button class="filter-pill" data-val="available">Available</button>
+      <button class="filter-pill" data-val="sold_out">Sold Out</button>
+    </div>
+    <div class="products-grid" id="productsGrid"></div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-bottom" style="border-top:none;padding-top:0">
+        <p>© 2026 EEMRAS.</p>
+      </div>
+    </div>
+  </footer>
+  <script src="/js/utils.js"></script>
+  <script>
+    const slug = window.location.pathname.split('/category/')[1];
+    let currentPage = 1; let currentStatus = '';
+    async function loadPage() {
+      showSkeletons(document.getElementById('productsGrid'), 8);
+      const params = new URLSearchParams({ category: slug, page: currentPage, limit: 20 });
+      const measure = document.getElementById('measureFilter').value;
+      if (measure) params.set('measurement', measure);
+      if (currentStatus) params.set('status', currentStatus);
+      try {
+        const data = await API.get('/api/products?' + params);
+        document.getElementById('catCount').textContent = `${data.pagination.total} products`;
+        const grid = document.getElementById('productsGrid');
+        grid.innerHTML = '';
+        if (!data.products.length) {
+          grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔍</div><h3>No products found</h3></div>';
+          return;
+        }
+        data.products.forEach(p => grid.appendChild(buildProductCard(p)));
+        buildPagination(document.getElementById('pagination'), data.pagination, p => { currentPage = p; loadPage(); window.scrollTo({ top: 0 }); });
+      } catch (e) { }
+    }
+    async function init() {
+      try {
+        const data = await API.get(`/api/categories/${slug}`);
+        document.title = `${data.category.name} — EEMRAS`;
+        document.getElementById('catName').textContent = data.category.name;
+        document.getElementById('breadcrumb').innerHTML = `<a href="/">Home</a><span class="breadcrumb-sep">/</span><a href="/products">Products</a><span class="breadcrumb-sep">/</span><span>${escapeHtml(data.category.name)}</span>`;
+      } catch (e) { document.getElementById('catName').textContent = 'Category'; }
+      loadPage();
+    }
+    document.querySelectorAll('[data-val]').forEach(btn => {
+      btn.addEventListener('click', () => { document.querySelectorAll('[data-val]').forEach(b => b.classList.remove('active')); btn.classList.add('active'); currentStatus = btn.dataset.val; currentPage = 1; loadPage(); });
+    });
+    document.getElementById('measureFilter').addEventListener('change', () => { currentPage = 1; loadPage(); });
+    document.getElementById('mainSearch').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.value.trim()) window.location.href = `/search?q=${encodeURIComponent(e.target.value.trim())}`; });
+    init();
+  </script>
+</body>
+
+</html>

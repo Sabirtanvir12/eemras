@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — Admin</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarContainer"></div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <span class="topbar-title">Settings</span>
+      </div>
+    </div>
+    <div class="admin-content" style="max-width:560px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Account Information</span></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+            <div class="admin-avatar" style="width:56px;height:56px;font-size:1.4rem">A</div>
+            <div>
+              <p style="font-weight:600;font-size:1rem" class="admin-name">—</p>
+              <p style="font-size:0.82rem;color:var(--gray)" class="admin-role">—</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:1.25rem">
+        <div class="card-header"><span class="card-title">Change Password</span></div>
+        <div class="card-body">
+          <div id="pwAlert" class="alert" style="display:none"></div>
+          <div class="form-group">
+            <label class="form-label">Current Password</label>
+            <input type="password" class="form-control" id="currentPw" placeholder="••••••••">
+          </div>
+          <div class="form-group">
+            <label class="form-label">New Password</label>
+            <input type="password" class="form-control" id="newPw" placeholder="Min 8 characters">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm New Password</label>
+            <input type="password" class="form-control" id="confirmPw" placeholder="Repeat new password">
+          </div>
+          <button class="btn btn-primary" id="changePwBtn">Update Password</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/js/sidebar.js"></script>
+<script src="/js/admin-utils.js"></script>
+<script>
+  document.getElementById('sidebarContainer').innerHTML = SIDEBAR_HTML;
+
+  document.getElementById('changePwBtn').addEventListener('click', async () => {
+    const current = document.getElementById('currentPw').value;
+    const newPw = document.getElementById('newPw').value;
+    const confirm = document.getElementById('confirmPw').value;
+    const alertEl = document.getElementById('pwAlert');
+
+    if (!current || !newPw || !confirm) { alertEl.className='alert alert-error'; alertEl.textContent='All fields required.'; alertEl.style.display='block'; return; }
+    if (newPw.length < 8) { alertEl.className='alert alert-error'; alertEl.textContent='New password must be at least 8 characters.'; alertEl.style.display='block'; return; }
+    if (newPw !== confirm) { alertEl.className='alert alert-error'; alertEl.textContent='Passwords do not match.'; alertEl.style.display='block'; return; }
+
+    const btn = document.getElementById('changePwBtn');
+    btn.disabled = true; alertEl.style.display='none';
+    try {
+      const res = await fetch('/api/headshot/change-password', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password: current, new_password: newPw, new_password_confirm: confirm })
+      });
+      const data = await res.json();
+      if (data.success) { alertEl.className='alert alert-success'; alertEl.textContent='Password updated successfully!'; alertEl.style.display='block'; document.getElementById('currentPw').value=''; document.getElementById('newPw').value=''; document.getElementById('confirmPw').value=''; }
+      else { alertEl.className='alert alert-error'; alertEl.textContent=data.error||'Failed.'; alertEl.style.display='block'; }
+    } catch(e) { alertEl.className='alert alert-error'; alertEl.textContent='Network error.'; alertEl.style.display='block'; }
+    finally { btn.disabled = false; }
+  });
+</script>
+</body>
+</html>

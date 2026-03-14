@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Products — Admin</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarContainer"></div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <span class="topbar-title">Products</span>
+      </div>
+      <a href="/headshot/add-product.html" class="btn btn-primary btn-sm">+ Add Product</a>
+    </div>
+    <div class="admin-content">
+      <div class="admin-search-bar">
+        <input type="text" class="admin-search-input" id="searchInput" placeholder="Search by name, code, category…">
+        <button class="btn btn-ghost" id="searchBtn">Search</button>
+        <span id="totalCount" style="margin-left:auto;font-size:0.82rem;color:var(--gray)"></span>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:50px"></th>
+                <th>Product</th>
+                <th class="hide-mobile">Code</th>
+                <th class="hide-mobile">Category</th>
+                <th>Price</th>
+                <th class="hide-mobile">Views</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="productsTbody"><tr><td colspan="8" class="empty-row"><div class="spinner" style="margin:0 auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+</div>
+<script src="/js/sidebar.js"></script>
+<script src="/js/admin-utils.js"></script>
+<script>
+  document.getElementById('sidebarContainer').innerHTML = SIDEBAR_HTML;
+  let currentPage = 1;
+  let searchQuery = '';
+
+  async function loadProducts() {
+    const tbody = document.getElementById('productsTbody');
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-row"><div class="spinner" style="margin:0 auto"></div></td></tr>';
+    try {
+      const params = new URLSearchParams({ page: currentPage });
+      if (searchQuery) params.set('search', searchQuery);
+      const data = await AdminAPI.get('/products?' + params);
+      document.getElementById('totalCount').textContent = `${data.pagination.total} products`;
+      if (!data.products.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-row">No products found.</td></tr>';
+        document.getElementById('pagination').innerHTML = '';
+        return;
+      }
+      tbody.innerHTML = data.products.map(p => `
+        <tr>
+          <td data-label="Image">
+            ${p.main_image
+              ? `<img class="td-img" src="${escapeHtml(p.main_image)}" alt="${escapeHtml(p.name)}" loading="lazy">`
+              : '<div class="td-img" style="background:var(--bg);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">📦</div>'}
+          </td>
+          <td data-label="Product"><a href="/headshot/edit-product.html?id=${p.id}" style="font-weight:500;color:var(--charcoal)">${escapeHtml(p.name)}</a></td>
+          <td data-label="Code" class="hide-mobile"><span class="td-code">${escapeHtml(p.code)}</span></td>
+          <td data-label="Category" class="hide-mobile">${escapeHtml(p.category_name) || '—'}</td>
+          <td data-label="Price">${fmtPrice(p.price, p.discount_price)}</td>
+          <td data-label="Views" class="hide-mobile">${p.views.toLocaleString()}</td>
+          <td data-label="Status"><span class="badge ${p.status === 'available' ? 'badge-success' : 'badge-danger'}">${p.status === 'available' ? 'Available' : 'Sold Out'}</span></td>
+          <td data-label="Actions">
+            <div style="display:flex;gap:0.35rem;justify-content:flex-start">
+              <a href="/headshot/edit-product.html?id=${p.id}" class="btn btn-ghost btn-sm btn-icon" title="Edit">✏️</a>
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="toggleStatus(${p.id},'${p.status}')" title="${p.status === 'available' ? 'Mark Sold Out' : 'Mark Available'}">${p.status === 'available' ? '🚫' : '✅'}</button>
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteProduct(${p.id},'${escapeHtml(p.name).replace(/'/g,"\\'")}')" title="Delete">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      renderPagination('pagination', data.pagination, p => { currentPage = p; loadProducts(); });
+    } catch(e) { tbody.innerHTML = '<tr><td colspan="8" class="empty-row">Failed to load products.</td></tr>'; }
+  }
+
+  async function deleteProduct(id, name) {
+    if (!await confirmDialog(`Delete "${name}"? This cannot be undone.`)) return;
+    try {
+      await AdminAPI.del(`/products/${id}`);
+      toast('Product deleted.'); loadProducts();
+    } catch(e) { toast('Failed to delete.', 'error'); }
+  }
+
+  async function toggleStatus(id, currentStatus) {
+    const newStatus = currentStatus === 'available' ? 'sold_out' : 'available';
+    try {
+      const fd = new FormData(); fd.append('status', newStatus);
+      const res = await AdminAPI.putForm(`/products/${id}`, fd);
+      if (res.success) { toast('Status updated.'); loadProducts(); }
+    } catch(e) { toast('Failed to update.', 'error'); }
+  }
+
+  document.getElementById('searchBtn').addEventListener('click', () => { searchQuery = document.getElementById('searchInput').value.trim(); currentPage = 1; loadProducts(); });
+  document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') { searchQuery = e.target.value.trim(); currentPage = 1; loadProducts(); } });
+
+  document.addEventListener('DOMContentLoaded', loadProducts);
+</script>
+</body>
+</html>

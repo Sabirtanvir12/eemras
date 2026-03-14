@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Product — Admin</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarContainer"></div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <a href="/headshot/products.html" style="color:var(--gray);font-size:1.1rem">←</a>
+        <span class="topbar-title">Edit Product</span>
+      </div>
+      <div style="display:flex;gap:0.5rem">
+        <a id="viewProductLink" href="#" target="_blank" class="btn btn-ghost btn-sm">👁 View</a>
+      </div>
+    </div>
+    <div class="admin-content">
+      <div id="formAlert" class="alert" style="display:none"></div>
+      <div id="loadingState" style="text-align:center;padding:4rem"><div class="spinner" style="margin:0 auto"></div></div>
+      <form id="productForm" style="display:none;gap:1.5rem;align-items:start">
+        <!-- LEFT -->
+        <div style="display:flex;flex-direction:column;gap:1.25rem">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Product Information</span></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">Product Name <span>*</span></label>
+                <input type="text" class="form-control" name="name" required>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Unique Code <span>*</span></label>
+                  <input type="text" class="form-control" name="code" required style="text-transform:uppercase">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Category</label>
+                  <select class="form-control" name="category_id" id="catSelect"><option value="">Select</option></select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Size</label>
+                  <select class="form-control" name="measurement">
+                    <option value="">Not specified</option>
+                    <option>XS</option><option>S</option><option>M</option>
+                    <option>L</option><option>XL</option><option>XXL</option><option>Free Size</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Status</label>
+                  <select class="form-control" name="status">
+                    <option value="available">Available</option>
+                    <option value="sold_out">Sold Out</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="description" rows="4"></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Pricing</span></div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Original Price (৳) <span>*</span></label><input type="number" class="form-control" name="price" required min="0" step="0.01"></div>
+                <div class="form-group"><label class="form-label">Discount Price (৳)</label><input type="number" class="form-control" name="discount_price" min="0" step="0.01"><p class="form-hint">Leave blank for no discount.</p></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Gallery Images</span></div>
+            <div class="card-body">
+              <div id="existingGallery" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem"></div>
+              <div class="upload-zone" id="galleryZone">
+                <div class="upload-icon">🗂️</div><p><strong>Add more images</strong></p>
+                <p style="font-size:0.72rem;margin-top:0.2rem">Up to 10 images</p>
+              </div>
+              <input type="file" id="galleryInput" accept="image/*" multiple style="display:none">
+              <div id="galleryPreview" class="upload-previews" style="margin-top:0.75rem"></div>
+            </div>
+          </div>
+        </div>
+        <!-- RIGHT -->
+        <div style="display:flex;flex-direction:column;gap:1.25rem">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Main Image</span></div>
+            <div class="card-body">
+              <div id="currentMainImg" style="margin-bottom:0.75rem"></div>
+              <div class="upload-zone" id="mainImgZone">
+                <div class="upload-icon">🖼️</div><p><strong>Replace image</strong></p>
+                <p style="font-size:0.72rem;margin-top:0.2rem">JPG, PNG, WebP · Max 5MB</p>
+              </div>
+              <input type="file" id="mainImgInput" accept="image/*" style="display:none">
+              <div id="mainImgPreview" class="upload-previews"></div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" id="submitBtn" style="width:100%;padding:0.85rem">
+            <span id="submitSpinner" class="spinner" style="display:none"></span>
+            Save Changes
+          </button>
+          <button type="button" class="btn btn-danger" id="deleteBtn" style="width:100%">🗑 Delete Product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="/js/sidebar.js"></script>
+<script src="/js/admin-utils.js"></script>
+<script>
+  document.getElementById('sidebarContainer').innerHTML = SIDEBAR_HTML;
+  const productId = new URLSearchParams(window.location.search).get('id');
+  if (!productId) window.location.href = '/headshot/products.html';
+
+  async function loadCategories(selectedId) {
+    try {
+      const res = await fetch('/api/categories');
+      const data = await res.json();
+      const sel = document.getElementById('catSelect');
+      data.categories.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id; opt.textContent = c.name;
+        if (String(c.id) === String(selectedId)) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    } catch(e) {}
+  }
+
+  async function loadProduct() {
+    try {
+      const data = await AdminAPI.get(`/products/${productId}`);
+      const { product, images } = data;
+      document.title = `Edit: ${product.name} — Admin`;
+      document.getElementById('viewProductLink').href = `/product/${product.id}`;
+
+      const form = document.getElementById('productForm');
+      form.elements['name'].value = product.name;
+      form.elements['code'].value = product.code;
+      form.elements['measurement'].value = product.measurement || '';
+      form.elements['status'].value = product.status;
+      form.elements['price'].value = product.price;
+      form.elements['discount_price'].value = product.discount_price || '';
+      form.elements['description'].value = product.description || '';
+
+      await loadCategories(product.category_id);
+
+      // Current main image
+      if (product.main_image) {
+        document.getElementById('currentMainImg').innerHTML = `
+          <img src="${product.main_image}" style="width:100%;max-height:200px;object-fit:cover;border-radius:6px">
+        `;
+      }
+
+      // Gallery images
+      const galleryEl = document.getElementById('existingGallery');
+      images.forEach(img => {
+        const div = document.createElement('div');
+        div.style.cssText = 'position:relative;width:72px;height:72px';
+        div.innerHTML = `
+          <img src="${img.image_url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">
+          <button type="button" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#dc2626;color:white;border:none;cursor:pointer;font-size:0.65rem;display:flex;align-items:center;justify-content:center" onclick="deleteGalleryImg(${img.id},this)">✕</button>
+        `;
+        galleryEl.appendChild(div);
+      });
+
+      document.getElementById('loadingState').style.display = 'none';
+      form.style.display = 'grid';
+    } catch(e) {
+      document.getElementById('loadingState').innerHTML = '<p style="color:var(--danger)">Failed to load product.</p>';
+    }
+  }
+
+  async function deleteGalleryImg(imgId, btn) {
+    if (!await confirmDialog('Remove this image?')) return;
+    try {
+      await AdminAPI.del(`/products/${productId}/images/${imgId}`);
+      btn.closest('div').remove();
+      toast('Image removed.');
+    } catch(e) { toast('Failed to remove image.', 'error'); }
+  }
+
+  initUploadZone('mainImgZone', 'mainImgInput', 'mainImgPreview');
+  initUploadZone('galleryZone', 'galleryInput', 'galleryPreview', { multiple: true });
+
+  document.getElementById('productForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = document.getElementById('submitSpinner');
+    const alertEl = document.getElementById('formAlert');
+    submitBtn.disabled = true; spinner.style.display = 'inline-block'; alertEl.style.display = 'none';
+
+    const fd = new FormData(form);
+    const mainFile = document.getElementById('mainImgInput').files[0];
+    const galleryFiles = document.getElementById('galleryInput').files;
+    if (mainFile) fd.set('main_image', mainFile);
+    Array.from(galleryFiles).forEach(f => fd.append('gallery', f));
+
+    try {
+      const res = await fetch(`/api/headshot/products/${productId}`, { method: 'PUT', body: fd });
+      const data = await res.json();
+      if (data.success) { toast('Product updated!'); }
+      else { alertEl.className = 'alert alert-error'; alertEl.textContent = data.error || 'Failed.'; alertEl.style.display = 'block'; }
+    } catch(err) { alertEl.className = 'alert alert-error'; alertEl.textContent = 'Network error.'; alertEl.style.display = 'block'; }
+    finally { submitBtn.disabled = false; spinner.style.display = 'none'; }
+  });
+
+  document.getElementById('deleteBtn').addEventListener('click', async () => {
+    if (!await confirmDialog('Delete this product permanently?')) return;
+    try {
+      await AdminAPI.del(`/products/${productId}`);
+      toast('Deleted.'); setTimeout(() => window.location.href = '/headshot/products.html', 1000);
+    } catch(e) { toast('Failed to delete.', 'error'); }
+  });
+
+  document.addEventListener('DOMContentLoaded', loadProduct);
+</script>
+</body>
+</html>

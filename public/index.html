@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EEMRAS — Premium Fashion Store</title>
+  <meta name="description"
+    content="Discover our curated collection of premium fashion clothing. Browse shirts, pants, hoodies, jackets and more.">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/colors.css">
+</head>
+
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">EEM<span>RAS</span></a>
+      <ul class="nav-links">
+        <li><a href="/" class="active">Home</a></li>
+        <li><a href="/products">Products</a></li>
+        <li><a href="/products?category=shirt">Categories</a></li>
+        <li><a href="/wishlist">Wishlist</a></li>
+      </ul>
+      <div class="nav-search">
+        <input type="text" placeholder="Search products…" id="mainSearch">
+        <span class="search-icon">⌕</span>
+      </div>
+      <div class="nav-actions">
+        <a href="/wishlist" class="nav-icon-btn" aria-label="Wishlist">
+          ♡
+          <span class="badge wishlist-badge" style="display:none">0</span>
+        </a>
+      </div>
+      <div class="hamburger">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="hero-eyebrow">New Collection 2026</p>
+      <h1>Where Fashion<br><em>Get Another Chance</em></h1>
+      <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap">
+        <a href="/products" class="btn btn-primary btn-lg">Shop Now</a>
+        <a href="#categories" class="btn btn-outline btn-lg"
+          style="border-color:rgba(255,255,255,0.4);color:var(--ivory)">Browse Categories</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- CATEGORIES -->
+  <section class="section" id="categories">
+    <div class="section-header">
+      <div class="section-title">
+        <h2>Shop by Category</h2>
+        <p>Find your style, your way</p>
+      </div>
+      <a href="/products" class="section-link">View all →</a>
+    </div>
+    <div class="categories-grid" id="categoriesGrid">
+      <!-- Skeletons -->
+      <div class="skeleton-card" style="border-radius:10px;overflow:hidden">
+        <div class="skel-img" style="aspect-ratio:1/1"></div>
+        <div class="skel-body">
+          <div class="skel-line" style="width:60%"></div>
+        </div>
+      </div>
+      <div class="skeleton-card" style="border-radius:10px;overflow:hidden">
+        <div class="skel-img" style="aspect-ratio:1/1"></div>
+        <div class="skel-body">
+          <div class="skel-line" style="width:60%"></div>
+        </div>
+      </div>
+      <div class="skeleton-card" style="border-radius:10px;overflow:hidden">
+        <div class="skel-img" style="aspect-ratio:1/1"></div>
+        <div class="skel-body">
+          <div class="skel-line" style="width:60%"></div>
+        </div>
+      </div>
+      <div class="skeleton-card" style="border-radius:10px;overflow:hidden">
+        <div class="skel-img" style="aspect-ratio:1/1"></div>
+        <div class="skel-body">
+          <div class="skel-line" style="width:60%"></div>
+        </div>
+      </div>
+      <div class="skeleton-card" style="border-radius:10px;overflow:hidden">
+        <div class="skel-img" style="aspect-ratio:1/1"></div>
+        <div class="skel-body">
+          <div class="skel-line" style="width:60%"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LATEST PRODUCTS -->
+  <section class="section" style="background:var(--white);border-radius:16px;margin-top:0;padding-top:3rem">
+    <div class="section-header">
+      <div class="section-title">
+        <h2>Latest Arrivals</h2>
+        <p>Fresh drops, just in</p>
+      </div>
+      <a href="/products" class="section-link">View all →</a>
+    </div>
+    <div class="products-grid" id="latestGrid"></div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <h3>EEMRAS</h3>
+          <p>Premium fashion, thoughtfully curated for the modern wardrobe.</p>
+        </div>
+        <div>
+          <p
+            style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--gray-light);margin-bottom:0.75rem">
+            Quick Links</p>
+          <div style="display:flex;flex-direction:column;gap:0.4rem">
+            <a href="/products" style="font-size:0.85rem;color:var(--gray-light);transition:color 0.2s"
+              onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--gray-light)'">All Products</a>
+            <a href="/wishlist" style="font-size:0.85rem;color:var(--gray-light);transition:color 0.2s"
+              onmouseover="this.style.color='white'" onmouseout="this.style.color='var(--gray-light)'">My Wishlist</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2026 EEMRAS. All rights reserved.</p>
+        <p style="font-size:0.75rem;opacity:0.5">Premium EEMRAS System</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/utils.js"></script>
+  <script>
+    const CATEGORY_EMOJIS = { shirt: '👔', pant: '👖', 't-shirt': '👕', hoodie: '🧥', jacket: '🧣' };
+
+    async function loadCategories() {
+      const grid = document.getElementById('categoriesGrid');
+      try {
+        const data = await API.get('/api/categories');
+        grid.innerHTML = '';
+        data.categories.forEach(cat => {
+          const emoji = CATEGORY_EMOJIS[cat.slug] || '🛍️';
+          const a = document.createElement('a');
+          a.href = `/category/${cat.slug}`;
+          a.className = 'category-card fade-in';
+          a.innerHTML = `
+          <div class="category-img">
+            ${cat.image
+              ? `<img src="${cat.image}" alt="${escapeHtml(cat.name)}" loading="lazy">`
+              : `<span>${emoji}</span>`}
+          </div>
+          <div class="category-info">
+            <h3>${escapeHtml(cat.name)}</h3>
+            <span class="category-count">${cat.product_count} product${cat.product_count !== 1 ? 's' : ''}</span>
+          </div>
+        `;
+          grid.appendChild(a);
+        });
+      } catch (e) { grid.innerHTML = '<p class="text-gray">Failed to load categories.</p>'; }
+    }
+
+    async function loadLatest() {
+      const grid = document.getElementById('latestGrid');
+      showSkeletons(grid, 10);
+      try {
+        const data = await API.get('/api/products/latest');
+        grid.innerHTML = '';
+        if (!data.products.length) {
+          grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🛍️</div><h3>No products yet</h3><p>Check back soon!</p></div>';
+          return;
+        }
+        data.products.forEach(p => grid.appendChild(buildProductCard(p)));
+      } catch (e) { grid.innerHTML = '<p class="text-gray" style="grid-column:1/-1;text-align:center">Failed to load products.</p>'; }
+    }
+
+    // Nav search
+    document.getElementById('mainSearch').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.target.value.trim()) {
+        window.location.href = `/search?q=${encodeURIComponent(e.target.value.trim())}`;
+      }
+    });
+
+    loadCategories();
+    loadLatest();
+  </script>
+</body>
+
+</html>

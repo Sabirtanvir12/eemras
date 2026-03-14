@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login — EEMRAS</title>
+  <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    body { background: var(--sidebar-bg); display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
+    .login-card { background: var(--white); border-radius: 14px; padding: 2.5rem 2rem; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .login-logo { text-align: center; margin-bottom: 2rem; }
+    .login-logo span { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+    .login-logo em { color: var(--terra); font-style: normal; }
+    .login-logo p { font-size: 0.78rem; color: var(--gray); margin-top: 0.25rem; }
+    h2 { font-size: 1.3rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .sub { font-size: 0.82rem; color: var(--gray); margin-bottom: 1.75rem; }
+    .show-pw { position: absolute; right: 0.9rem; top: 50%; transform: translateY(-50%); border: none; background: none; cursor: pointer; color: var(--gray); font-size: 1rem; }
+    .pw-wrap { position: relative; }
+    .loader { display: none; }
+    .loader.active { display: inline-flex; }
+  </style>
+</head>
+<body>
+<div class="login-card">
+  <div class="login-logo">
+    <span>EEM<em>RAS</em></span>
+    <p>Admin Panel</p>
+  </div>
+  <h2>Welcome back</h2>
+  <p class="sub">Sign in to manage EEMRAS</p>
+  <div id="alert" class="alert alert-error" style="display:none"></div>
+  <div class="form-group">
+    <label class="form-label">Email Address</label>
+    <input type="email" class="form-control" id="email" placeholder="admin@eemras.com" autocomplete="email">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Password</label>
+    <div class="pw-wrap">
+      <input type="password" class="form-control" id="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:2.5rem">
+      <button class="show-pw" id="togglePw" type="button">👁</button>
+    </div>
+  </div>
+  <button class="btn btn-primary" id="loginBtn" style="width:100%;padding:0.75rem;font-size:0.9rem;margin-top:0.25rem">
+    <span class="loader active" id="btnLoader"><div class="spinner" style="display:none" id="spinner"></div></span>
+    Sign In
+  </button>
+  <p style="margin-top:1.5rem;text-align:center;font-size:0.78rem;color:var(--gray)">
+    <a href="/" style="color:var(--terra)">← Back to Store</a>
+  </p>
+</div>
+<script>
+  const emailEl = document.getElementById('email');
+  const pwEl = document.getElementById('password');
+  const loginBtn = document.getElementById('loginBtn');
+  const alertEl = document.getElementById('alert');
+  const spinner = document.getElementById('spinner');
+
+  document.getElementById('togglePw').addEventListener('click', () => {
+    pwEl.type = pwEl.type === 'password' ? 'text' : 'password';
+  });
+
+  async function doLogin() {
+    const email = emailEl.value.trim();
+    const password = pwEl.value;
+    if (!email || !password) { showAlert('Please enter email and password.'); return; }
+
+    loginBtn.disabled = true;
+    spinner.style.display = 'block';
+    alertEl.style.display = 'none';
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.location.href = '/headshot/dashboard.html';
+      } else {
+        showAlert(data.error || 'Login failed.');
+      }
+    } catch(e) {
+      showAlert('Network error. Please try again.');
+    } finally {
+      loginBtn.disabled = false;
+      spinner.style.display = 'none';
+    }
+  }
+
+  function showAlert(msg) {
+    alertEl.textContent = msg;
+    alertEl.style.display = 'block';
+  }
+
+  loginBtn.addEventListener('click', doLogin);
+  [emailEl, pwEl].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); }));
+
+  // Check if already logged in
+  fetch('/api/auth/me').then(r => r.json()).then(d => { if (d.authenticated) window.location.href = '/headshot/dashboard.html'; });
+</script>
+</body>
+</html>

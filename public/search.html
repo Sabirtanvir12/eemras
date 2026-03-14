@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Search — EEMRAS</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">EEM<span>RAS</span></a>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/products">Products</a></li>
+        <li><a href="/wishlist">Wishlist</a></li>
+      </ul>
+      <div class="nav-actions"><a href="/wishlist" class="nav-icon-btn">♡<span class="badge wishlist-badge"
+            style="display:none">0</span></a></div>
+      <div class="hamburger"><span></span><span></span><span></span></div>
+    </div>
+  </nav>
+  <div class="search-header">
+    <div style="max-width:1400px;margin:0 auto">
+      <h1>Search</h1>
+      <p id="searchSubtitle"></p>
+      <div class="search-form">
+        <input type="text" id="searchInput" placeholder="Search by name, code, or category…">
+        <button class="btn btn-primary" id="searchBtn">Search</button>
+      </div>
+    </div>
+  </div>
+  <div class="section" style="padding-top:2rem">
+    <div class="products-grid" id="resultsGrid"></div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-bottom" style="border-top:none;padding-top:0">
+        <p>© 2026 EEMRAS.</p>
+      </div>
+    </div>
+  </footer>
+  <script src="/js/utils.js"></script>
+  <script>
+    let currentQuery = '';
+    let currentPage = 1;
+    const searchInput = document.getElementById('searchInput');
+
+    function getQuery() { return new URLSearchParams(window.location.search).get('q') || ''; }
+
+    async function doSearch(q, page = 1) {
+      if (!q.trim()) return;
+      currentQuery = q; currentPage = page;
+      const grid = document.getElementById('resultsGrid');
+      showSkeletons(grid, 8);
+      document.getElementById('searchSubtitle').textContent = `Results for "${q}"`;
+      try {
+        const data = await API.get(`/api/products?search=${encodeURIComponent(q)}&page=${page}&limit=20`);
+        grid.innerHTML = '';
+        document.getElementById('searchSubtitle').textContent = `${data.pagination.total} results for "${q}"`;
+        if (!data.products.length) {
+          grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔍</div><h3>No results found</h3><p>Try a different search term.</p></div>`;
+          return;
+        }
+        data.products.forEach(p => grid.appendChild(buildProductCard(p)));
+        buildPagination(document.getElementById('pagination'), data.pagination, p => doSearch(currentQuery, p));
+      } catch (e) { grid.innerHTML = '<p>Search failed. Try again.</p>'; }
+    }
+
+    document.getElementById('searchBtn').addEventListener('click', () => {
+      const q = searchInput.value.trim();
+      if (q) { history.pushState({}, '', `/search?q=${encodeURIComponent(q)}`); doSearch(q); }
+    });
+    searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { const q = searchInput.value.trim(); if (q) { history.pushState({}, '', `/search?q=${encodeURIComponent(q)}`); doSearch(q); } }
+    });
+
+    const q = getQuery();
+    if (q) { searchInput.value = q; doSearch(q); }
+  </script>
+</body>
+
+</html>

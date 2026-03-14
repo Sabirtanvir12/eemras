@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Categories — Admin</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarContainer"></div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <span class="topbar-title">Categories</span>
+      </div>
+      <button class="btn btn-primary btn-sm" id="addCatBtn">+ Add Category</button>
+    </div>
+    <div class="admin-content">
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th style="width:60px"></th><th>Name</th><th>Slug</th><th>Products</th><th>Actions</th></tr></thead>
+            <tbody id="catTbody"><tr><td colspan="5" class="empty-row"><div class="spinner" style="margin:0 auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="catModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Add Category</span>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="modalAlert" class="alert" style="display:none"></div>
+      <div class="form-group">
+        <label class="form-label">Category Name <span style="color:red">*</span></label>
+        <input type="text" class="form-control" id="catName" placeholder="e.g. Hoodie">
+      </div>
+      <div class="form-group" id="slugGroup">
+        <label class="form-label">URL Slug <span style="color:red">*</span></label>
+        <input type="text" class="form-control" id="catSlug" placeholder="e.g. hoodie">
+        <p class="form-hint">Lowercase, hyphens only. Auto-generated from name.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category Image</label>
+        <div class="upload-zone" id="catImgZone">
+          <div class="upload-icon">🖼️</div>
+          <p><strong>Click or drag</strong> to upload</p>
+        </div>
+        <input type="file" id="catImgInput" accept="image/*" style="display:none">
+        <div id="catImgPreview" class="upload-previews" style="margin-top:0.5rem"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="cancelModal">Cancel</button>
+      <button class="btn btn-primary" id="saveModal">
+        <span id="saveSpinner" class="spinner" style="display:none"></span>
+        Save Category
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/sidebar.js"></script>
+<script src="/js/admin-utils.js"></script>
+<script>
+  document.getElementById('sidebarContainer').innerHTML = SIDEBAR_HTML;
+  let editingId = null;
+
+  async function loadCategories() {
+    const tbody = document.getElementById('catTbody');
+    try {
+      const data = await AdminAPI.get('/categories');
+      if (!data.categories.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-row">No categories yet.</td></tr>'; return; }
+      tbody.innerHTML = data.categories.map(c => `
+        <tr>
+          <td data-label="Image">${c.image ? `<img class="td-img" src="${escapeHtml(c.image)}" alt="${escapeHtml(c.name)}">` : '<div class="td-img" style="background:var(--bg);border-radius:4px;display:flex;align-items:center;justify-content:center">📂</div>'}</td>
+          <td data-label="Name"><strong>${escapeHtml(c.name)}</strong></td>
+          <td data-label="Slug" class="hide-mobile"><span class="td-code">${escapeHtml(c.slug)}</span></td>
+          <td data-label="Products">${c.product_count}</td>
+          <td data-label="Actions">
+            <div style="display:flex;gap:0.35rem;justify-content:flex-end">
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="openEdit(${c.id},'${escapeHtml(c.name).replace(/'/g,"\\'")}','${escapeHtml(c.slug)}')">✏️</button>
+              <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteCategory(${c.id},'${escapeHtml(c.name).replace(/'/g,"\\'")}')">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    } catch(e) { tbody.innerHTML = '<tr><td colspan="5" class="empty-row">Failed to load.</td></tr>'; }
+  }
+
+  function openAdd() {
+    editingId = null;
+    document.getElementById('modalTitle').textContent = 'Add Category';
+    document.getElementById('catName').value = '';
+    document.getElementById('catSlug').value = '';
+    document.getElementById('catImgPreview').innerHTML = '';
+    document.getElementById('catImgInput').value = '';
+    document.getElementById('slugGroup').style.display = '';
+    document.getElementById('modalAlert').style.display = 'none';
+    document.getElementById('catModal').classList.add('open');
+  }
+
+  function openEdit(id, name, slug) {
+    editingId = id;
+    document.getElementById('modalTitle').textContent = 'Edit Category';
+    document.getElementById('catName').value = name;
+    document.getElementById('catSlug').value = slug;
+    document.getElementById('catImgPreview').innerHTML = '';
+    document.getElementById('catImgInput').value = '';
+    document.getElementById('slugGroup').style.display = 'none';
+    document.getElementById('modalAlert').style.display = 'none';
+    document.getElementById('catModal').classList.add('open');
+  }
+
+  async function deleteCategory(id, name) {
+    if (!await confirmDialog(`Delete category "${name}"? Products in this category will be uncategorized.`)) return;
+    try { await AdminAPI.del(`/categories/${id}`); toast('Deleted.'); loadCategories(); }
+    catch(e) { toast('Failed to delete.', 'error'); }
+  }
+
+  async function saveCategory() {
+    const name = document.getElementById('catName').value.trim();
+    const slug = document.getElementById('catSlug').value.trim();
+    const alertEl = document.getElementById('modalAlert');
+    const spinner = document.getElementById('saveSpinner');
+    const saveBtn = document.getElementById('saveModal');
+
+    if (!name) { alertEl.className = 'alert alert-error'; alertEl.textContent = 'Name is required.'; alertEl.style.display = 'block'; return; }
+    if (!editingId && !slug) { alertEl.className = 'alert alert-error'; alertEl.textContent = 'Slug is required.'; alertEl.style.display = 'block'; return; }
+
+    saveBtn.disabled = true; spinner.style.display = 'inline-block'; alertEl.style.display = 'none';
+
+    const fd = new FormData();
+    fd.append('name', name);
+    if (!editingId) fd.append('slug', slug);
+    const imgFile = document.getElementById('catImgInput').files[0];
+    if (imgFile) fd.append('image', imgFile);
+
+    try {
+      let res;
+      if (editingId) res = await fetch(`/api/headshot/categories/${editingId}`, { method: 'PUT', body: fd });
+      else res = await fetch('/api/headshot/categories', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.success) { toast(editingId ? 'Category updated!' : 'Category created!'); document.getElementById('catModal').classList.remove('open'); loadCategories(); }
+      else { alertEl.className = 'alert alert-error'; alertEl.textContent = data.error || 'Failed.'; alertEl.style.display = 'block'; }
+    } catch(e) { alertEl.className = 'alert alert-error'; alertEl.textContent = 'Network error.'; alertEl.style.display = 'block'; }
+    finally { saveBtn.disabled = false; spinner.style.display = 'none'; }
+  }
+
+  // Auto-slug from name
+  document.getElementById('catName').addEventListener('input', e => {
+    if (!editingId) {
+      document.getElementById('catSlug').value = e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    }
+  });
+
+  initUploadZone('catImgZone', 'catImgInput', 'catImgPreview');
+
+  document.getElementById('addCatBtn').addEventListener('click', openAdd);
+  document.getElementById('saveModal').addEventListener('click', saveCategory);
+  document.getElementById('cancelModal').addEventListener('click', () => document.getElementById('catModal').classList.remove('open'));
+  document.getElementById('modalClose').addEventListener('click', () => document.getElementById('catModal').classList.remove('open'));
+
+  document.addEventListener('DOMContentLoaded', loadCategories);
+</script>
+</body>
+</html>

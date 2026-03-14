@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admins — Admin Panel</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarContainer"></div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <span class="topbar-title">Admin Accounts</span>
+      </div>
+      <button class="btn btn-primary btn-sm" id="addAdminBtn">+ Add Admin</button>
+    </div>
+    <div class="admin-content">
+      <div class="alert alert-warn" style="background:#fef9c3;color:#92400e;border:1px solid #fde68a;padding:0.75rem 1rem;border-radius:6px;font-size:0.85rem;margin-bottom:1.25rem">
+        ⚠️ This page is only accessible to <strong>Super Admins</strong>.
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody id="adminTbody"><tr><td colspan="5" class="empty-row"><div class="spinner" style="margin:0 auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD ADMIN MODAL -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Add New Admin</span>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="modalAlert" class="alert" style="display:none"></div>
+      <div class="form-group"><label class="form-label">Full Name <span style="color:red">*</span></label><input type="text" class="form-control" id="adminName" placeholder="John Doe"></div>
+      <div class="form-group"><label class="form-label">Email <span style="color:red">*</span></label><input type="email" class="form-control" id="adminEmail" placeholder="john@example.com"></div>
+      <div class="form-group"><label class="form-label">Password <span style="color:red">*</span></label><input type="password" class="form-control" id="adminPassword" placeholder="Min 8 characters"></div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select class="form-control" id="adminRole">
+          <option value="admin">Admin</option>
+          <option value="super_admin">Super Admin</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="cancelModal">Cancel</button>
+      <button class="btn btn-primary" id="saveAdmin"><span id="saveSpinner" class="spinner" style="display:none"></span> Create Admin</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/sidebar.js"></script>
+<script src="/js/admin-utils.js"></script>
+<script>
+  document.getElementById('sidebarContainer').innerHTML = SIDEBAR_HTML;
+
+  async function loadAdmins() {
+    const tbody = document.getElementById('adminTbody');
+    try {
+      const data = await AdminAPI.get('/admins');
+      if (!data.admins.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-row">No admins found.</td></tr>'; return; }
+      tbody.innerHTML = data.admins.map(a => `
+        <tr>
+          <td data-label="Name"><strong>${escapeHtml(a.name)}</strong></td>
+          <td data-label="Email">${escapeHtml(a.email)}</td>
+          <td data-label="Role"><span class="badge ${a.role === 'super_admin' ? 'badge-warn' : 'badge-info'}">${a.role === 'super_admin' ? 'Super Admin' : 'Admin'}</span></td>
+          <td data-label="Created" class="hide-mobile" style="font-size:0.82rem;color:var(--gray)">${new Date(a.created_at).toLocaleDateString()}</td>
+          <td data-label="Actions" style="text-align:right">
+            <button class="btn btn-danger btn-sm" onclick="deleteAdmin(${a.id},'${escapeHtml(a.name)}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    } catch(e) {
+      if (e.message?.includes('403') || e.message?.includes('Forbidden')) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-row" style="color:var(--danger)">Access denied. Super Admin only.</td></tr>';
+      } else { tbody.innerHTML = '<tr><td colspan="5" class="empty-row">Failed to load.</td></tr>'; }
+    }
+  }
+
+  async function deleteAdmin(id, name) {
+    if (!await confirmDialog(`Delete admin "${name}"?`)) return;
+    try { await AdminAPI.del(`/admins/${id}`); toast('Admin deleted.'); loadAdmins(); }
+    catch(e) { toast(e.message || 'Failed.', 'error'); }
+  }
+
+  async function saveAdmin() {
+    const name = document.getElementById('adminName').value.trim();
+    const email = document.getElementById('adminEmail').value.trim();
+    const password = document.getElementById('adminPassword').value;
+    const role = document.getElementById('adminRole').value;
+    const alertEl = document.getElementById('modalAlert');
+    if (!name || !email || !password) { alertEl.className = 'alert alert-error'; alertEl.textContent = 'All fields required.'; alertEl.style.display = 'block'; return; }
+    if (password.length < 8) { alertEl.className = 'alert alert-error'; alertEl.textContent = 'Password must be at least 8 characters.'; alertEl.style.display = 'block'; return; }
+    const saveBtn = document.getElementById('saveAdmin');
+    const spinner = document.getElementById('saveSpinner');
+    saveBtn.disabled = true; spinner.style.display = 'inline-block'; alertEl.style.display = 'none';
+    try {
+      const data = await AdminAPI.post('/admins', { name, email, password, role });
+      if (data.success) { toast('Admin created!'); document.getElementById('adminModal').classList.remove('open'); loadAdmins(); }
+      else { alertEl.className = 'alert alert-error'; alertEl.textContent = data.error || 'Failed.'; alertEl.style.display = 'block'; }
+    } catch(e) { alertEl.className = 'alert alert-error'; alertEl.textContent = 'Network error.'; alertEl.style.display = 'block'; }
+    finally { saveBtn.disabled = false; spinner.style.display = 'none'; }
+  }
+
+  document.getElementById('addAdminBtn').addEventListener('click', () => { document.getElementById('adminModal').classList.add('open'); });
+  document.getElementById('saveAdmin').addEventListener('click', saveAdmin);
+  document.getElementById('cancelModal').addEventListener('click', () => document.getElementById('adminModal').classList.remove('open'));
+  document.getElementById('modalClose').addEventListener('click', () => document.getElementById('adminModal').classList.remove('open'));
+
+  document.addEventListener('DOMContentLoaded', loadAdmins);
+</script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Product — Admin</title>
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+<div class="admin-layout">
+  <div id="sidebarContainer"></div>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="admin-main">
+    <div class="admin-topbar">
+      <div style="display:flex;align-items:center;gap:0.75rem">
+        <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+        <a href="/headshot/products.html" style="color:var(--gray);font-size:1.1rem">←</a>
+        <span class="topbar-title">Add Product</span>
+      </div>
+    </div>
+    <div class="admin-content">
+      <div id="formAlert" class="alert" style="display:none"></div>
+      <form id="productForm" style="display:grid;grid-template-columns:1fr;gap:1.25rem;align-items:start">
+        <!-- LEFT -->
+        <div style="display:flex;flex-direction:column;gap:1rem;order:1">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Product Information</span></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label class="form-label">Product Name <span>*</span></label>
+                <input type="text" class="form-control" name="name" required placeholder="e.g. Classic Oxford Shirt">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Unique Code <span>*</span></label>
+                  <input type="text" class="form-control" name="code" required placeholder="e.g. SHT-001" style="text-transform:uppercase">
+                  <p class="form-hint">Auto-uppercased. Must be unique.</p>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Category</label>
+                  <select class="form-control" name="category_id" id="catSelect">
+                    <option value="">Select category</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Size / Measurement</label>
+                  <select class="form-control" name="measurement">
+                    <option value="">Not specified</option>
+                    <option>XS</option><option>S</option><option>M</option>
+                    <option>L</option><option>XL</option><option>XXL</option>
+                    <option>Free Size</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Status</label>
+                  <select class="form-control" name="status">
+                    <option value="available">Available</option>
+                    <option value="sold_out">Sold Out</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="description" rows="4" placeholder="Describe the product, fabric, care instructions…"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">Pricing</span></div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Original Price (৳) <span>*</span></label>
+                  <input type="number" class="form-control" name="price" required min="0" step="0.01" placeholder="1200">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Discount Price (৳)</label>
+                  <input type="number" class="form-control" name="discount_price" min="0" step="0.01" placeholder="850 (optional)">
+                  <p class="form-hint">Leave blank for no discount.</p>
+                </div>
+              </div>
+              <div id="pricePreview" style="padding:0.75rem;background:var(--bg);border-radius:6px;font-size:0.9rem;display:none">
+                Preview: <span id="pricePreviewText"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div style="display:flex;flex-direction:column;gap:1rem;order:2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Main Image</span></div>
+            <div class="card-body">
+              <div class="upload-zone" id="mainImgZone">
+                <div class="upload-icon">🖼️</div>
+                <p><strong>Click or drag</strong> to upload</p>
+                <p style="margin-top:0.25rem;font-size:0.72rem">JPG, PNG, WebP · Max 5MB</p>
+              </div>
+              <input type="file" id="mainImgInput" name="main_image" accept="image/*" style="display:none">
+              <div id="mainImgPreview" class="upload-previews"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">Gallery Images</span></div>
+            <div class="card-body">
+              <div class="upload-zone" id="galleryZone">
+                <div class="upload-icon">🗂️</div>
+                <p><strong>Click or drag</strong> multiple images</p>
+                <p style="margin-top:0.25rem;font-size:0.72rem">Up to 10 images</p>
+              </div>
+              <input type="file" id="galleryInput" name="gallery" accept="image/*" multiple style="display:none">
+              <div id="galleryPreview" class="upload-previews" style="margin-top:0.75rem"></div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="submitBtn" style="width:100%;padding:0.85rem;font-size:0.95rem">
+            <span id="submitSpinner" class="spinner" style="display:none"></span>
+            Add Product
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="/js/sidebar.js"></script>
+<script src="/js/admin-utils.js"></script>
+<script>
+  document.getElementById('sidebarContainer').innerHTML = SIDEBAR_HTML;
+
+  // Load categories
+  async function loadCategories() {
+    try {
+      const res = await fetch('/api/categories');
+      const data = await res.json();
+      const sel = document.getElementById('catSelect');
+      data.categories.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id; opt.textContent = c.name;
+        sel.appendChild(opt);
+      });
+    } catch(e) {}
+  }
+
+  // Price preview
+  function updatePricePreview() {
+    const price = parseFloat(document.querySelector('[name="price"]').value);
+    const discount = parseFloat(document.querySelector('[name="discount_price"]').value);
+    const preview = document.getElementById('pricePreview');
+    const text = document.getElementById('pricePreviewText');
+    if (price > 0) {
+      preview.style.display = 'block';
+      if (discount && discount < price) {
+        text.innerHTML = `<del style="color:#9ca3af">৳${price}</del> <strong style="color:#c4714a">৳${discount}</strong>`;
+      } else {
+        text.innerHTML = `<strong>৳${price}</strong>`;
+      }
+    } else { preview.style.display = 'none'; }
+  }
+  document.querySelector('[name="price"]').addEventListener('input', updatePricePreview);
+  document.querySelector('[name="discount_price"]').addEventListener('input', updatePricePreview);
+
+  // Upload zones
+  initUploadZone('mainImgZone', 'mainImgInput', 'mainImgPreview');
+  initUploadZone('galleryZone', 'galleryInput', 'galleryPreview', { multiple: true });
+
+  // Submit
+  document.getElementById('productForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const submitBtn = document.getElementById('submitBtn');
+    const spinner = document.getElementById('submitSpinner');
+    const alertEl = document.getElementById('formAlert');
+
+    submitBtn.disabled = true; spinner.style.display = 'inline-block';
+    alertEl.style.display = 'none';
+
+    const fd = new FormData(form);
+    // Attach actual files from inputs
+    const mainFile = document.getElementById('mainImgInput').files[0];
+    const galleryFiles = document.getElementById('galleryInput').files;
+    if (mainFile) fd.set('main_image', mainFile);
+    Array.from(galleryFiles).forEach(f => fd.append('gallery', f));
+
+    try {
+      const res = await fetch('/api/headshot/products', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.success) {
+        toast('Product added successfully!');
+        setTimeout(() => window.location.href = '/headshot/products.html', 1200);
+      } else {
+        alertEl.className = 'alert alert-error';
+        alertEl.textContent = data.error || 'Failed to add product.';
+        alertEl.style.display = 'block';
+      }
+    } catch(err) {
+      alertEl.className = 'alert alert-error';
+      alertEl.textContent = 'Network error. Please try again.';
+      alertEl.style.display = 'block';
+    } finally {
+      submitBtn.disabled = false; spinner.style.display = 'none';
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', loadCategories);
+</script>
+</body>
+</html>
